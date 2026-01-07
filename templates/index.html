@@ -1,0 +1,507 @@
+<!--
+  Dental X-Ray UI - Full Interface
+  - Arquivo: index.html
+  - Coloque este arquivo em seu diretório de templates (ex.: templates/index.html)
+  - O backend deve expor o endpoint /detect (POST) que retorna JSON no formato
+    [[x1,y1,x2,y2,label,confidence], ...] ou array de objetos (ver config abaixo).
+
+  Nota: o pacote enviado pelo usuário está localizado em:
+    /mnt/data/DentalXrayAI.rar
+  (este caminho foi incluído aqui como referência para integração / deploy)
+-->
+
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dental X-Ray — Painel de Análise</title>
+  <style>
+    :root{
+      --bg:#12131b;
+      --accent:#205876;
+      --accent-2:#3e6b8a;
+      --muted:#7a8a95;
+      --card:#1b1c29;
+      --danger:#e74c3c;
+      --success:#27ae60;
+      --glass: rgba(255,255,255,0.8);
+    }
+    html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background: var(--bg);} 
+    .app{display:flex;height:175vh;gap:18px;padding:18px;box-sizing:border-box}
+
+    /* Sidebar */
+    .sidebar{width:320px;background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(32,40,45,0.06);display:flex;flex-direction:column;gap:12px}
+    .logo{display:flex;gap:12px;align-items:center}
+    .logo img{width:48px;height:48px;border-radius:8px;object-fit:cover}
+    h1{font-size:18px;margin:0}
+    p.subtitle{margin:0;color:var(--muted);font-size:13px}
+    .controls{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+
+    .file-row{display:flex;gap:8px;align-items:center}
+    .btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+    .btn.secondary{background:#eef6fb;color:var(--accent);border:1px solid rgba(32,88,118,0.06)}
+    .btn.ghost{background:transparent;border:1px dashed #c8d6dd;color:var(--muted)}
+
+    input[type=file]{display:none}
+    .file-label{display:inline-flex;gap:10px;align-items:center;padding:8px 12px;border-radius:8px;background:#f7fbfe;border:1px solid #e6f1f6;cursor:pointer}
+
+    .section{background:var(--card);padding:12px;border-radius:10px;border:1px solid #eef6f9}
+    .section h3{margin:0;font-size:13px}
+    .muted{color:var(--muted);font-size:13px}
+
+    label.row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+    .range{width:100%}
+    .small{font-size:12px;color:var(--muted)}
+
+    /* Main panel */
+    .main{flex:1;background:transparent;display:flex;flex-direction:column}
+    .canvas-wrapper{flex:1;border-radius:12px;background:var(--card);padding:12px;box-shadow:0 6px 18px rgba(32,40,45,0.04);display:flex;flex-direction:column}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    .viewer{flex:1;display:flex;gap:12px}
+    .viewer-left{flex:1;display:flex;align-items:center;justify-content:center;background:var(--card);border-radius:10px;padding:8px;position:relative}
+
+    canvas{max-width:100%;max-height:calc(100vh - 240px);border-radius:6px}
+    .overlay{position:absolute;right:8px;top:8px;background:var(--glass);padding:6px;border-radius:8px;font-size:13px}
+
+    .tools-col{width:320px;display:flex;flex-direction:column;gap:10px}
+    .list{display:flex;flex-direction:column;gap:6px}
+
+    .footer{margin-top:8px;display:flex;justify-content:space-between;align-items:center}
+
+    /* badges and lists */
+    .badge{display:inline-block;padding:6px 8px;border-radius:8px;background:#f2fbf6;color:var(--success);font-weight:600}
+
+    /* responsive */
+    @media (max-width:1000px){
+      .app{flex-direction:column;padding:12px}
+      .sidebar{width:100%;order:2}
+      .viewer{flex-direction:column}
+      .tools-col{width:100%}
+    }
+
+    /* small helpers */
+    .muted-2{color:#96a6b0}
+    .label{font-weight:600;font-size:13px}
+    .row-flex{display:flex;gap:8px;align-items:center}
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!--  https://i.ibb.co/60r7bkT/DALL-E-2023-12-12-01-42-59-A-logo-for-X-Ray-Deep-Learning-Analysis-focused-on-dental-imagery-The-log.png -->
+    <!-- Sidebar: Upload + Modules -->
+    <aside class="sidebar">
+      <div class="logo">
+        <!-- <img src="../templates/img/logo-simbolo-t.png" alt="logo"> -->
+        <div>
+          <h1 style="color: #e6f1f6;">Dentican</h1>
+          <p class="subtitle">Análise radiográfica assistida por IA</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 style="color: #e6f1f6;">1) Upload</h3>
+        <p class="muted">Selecione imagem (panorâmica, periapical, bitewing ou CBCT slice)</p>
+        <div class="file-row">
+          <label class="file-label" for="fileInput">Escolher arquivo</label>
+          <input id="fileInput" type="file" accept="image/*">
+          <button id="btnDetect" class="btn" title="Executar detecção">Detectar</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="btnZoomFit" class="btn secondary" title="Ajustar à tela">Ajustar</button>
+          <button id="btnReset" class="btn secondary" title="Resetar view">Resetar</button>
+          <button id="btnExport" class="btn" title="Exportar imagem anotada">Exportar</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 style="color: #e6f1f6;">2) Ajustes radiográficos</h3>
+        <label class="row small">Brilho <input id="brightness" class="range" type="range" min="-100" max="100" value="0"></label>
+        <label class="row small">Contraste <input id="contrast" class="range" type="range" min="-100" max="100" value="0"></label>
+        <label class="row small">Gamma <input id="gamma" class="range" type="range" min="0.1" max="3" step="0.1" value="1"></label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="btnCLAHE" class="btn ghost">CLAHE (aplicar)</button>
+          <button id="btnInvert" class="btn ghost">Invert</button>
+        </div>
+        <p class="small muted-2" style="margin-top:8px">Obs: CLAHE é uma operação pesada — use com imagens grandes.</p>
+      </div>
+
+      <div class="section">
+        <h3 style="color: #e6f1f6;">3) Ferramentas odontológicas</h3>
+        <div class="list">
+          <label style="color: #e6f1f6;"><input type="checkbox" id="toggleBoxes" checked> Mostrar detecções</label>
+          <label style="color: #e6f1f6;"><input type="checkbox" id="toggleLabels" checked> Mostrar rótulos</label>
+          <label style="color: #e6f1f6;"><input type="checkbox" id="toggleMeasurements"> Mostrar medições</label>
+          <label style="color: #e6f1f6;"><input type="checkbox" id="toggleSegmentation"> Mostrar segmentação (placeholder)</label>
+        </div>
+        <p class="muted small">Ferramentas: medir distância, área, classificação de severidade, geração de laudo.</p>
+      </div>
+
+      <div class="section">
+        <h3 style="color: #e6f1f6;">4) Escala</h3>
+        <p class="small muted">Defina a escala para medições (mm por pixel)</p>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="scaleInput" type="number" step="0.001" value="0.264" style="width:110px;padding:6px;border-radius:8px;border:1px solid #e6eef3"> <!-- ex: 0.264 mm/px -->
+          <button id="btnCalibrate" class="btn secondary">Calibrar</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 style="color: #e6f1f6;">5) Relatório</h3>
+        <p class="small muted">Gerar laudo automático com base nas detecções</p>
+        <button id="btnGenerateReport" class="btn">Gerar laudo (PDF)</button>
+      </div>
+
+      <div class="footer">
+        <div class="muted small">Usuário: Dr(a). — Sessão: demo</div>
+        <div class="small muted">v1.0</div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div class="canvas-wrapper">
+        <div class="toolbar">
+          <div class="label">Visualizador</div>
+          <div style="flex:1"></div>
+          <div class="muted small">Detecções: <span id="detCount">0</span></div>
+        </div>
+
+        <div class="viewer" >
+          <div class="viewer-left" id="viewerLeft">
+            <div class="overlay">Zoom: <span id="zoomVal">100%</span></div>
+            <canvas id="mainCanvas"></canvas>
+          </div>
+
+          <aside class="tools-col">
+            <div class="section">
+              <h3 style="color: #e6f1f6;">Detecções</h3>
+              <div id="detectionsList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto"></div>
+            </div>
+
+            <div class="section">
+              <h3 style="color: #e6f1f6;">Medições</h3>
+              <p class="small muted">Clique em dois pontos no canvas para medir.</p>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button id="btnMeasure" class="btn secondary">Medir</button>
+                <button id="btnClearMeasurements" class="btn ghost">Limpar</button>
+              </div>
+              <div id="measurementsList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
+            </div>
+
+            <div class="section">
+              <h3 style="color: #e6f1f6;">Segmentação</h3>
+              <p class="small muted">Placeholder: integrar U-Net/segmentadores posteriormente.</p>
+              <button id="btnRunSeg" class="btn secondary">Executar Segmentação</button>
+            </div>
+
+          </aside>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ---------- Configuração ----------
+    // Endpoint backend (ajuste se necessário)
+    const DETECT_ENDPOINT = '/detect';
+
+    // Canvas & elementos
+    const fileInput = document.getElementById('fileInput');
+    const btnDetect = document.getElementById('btnDetect');
+    const mainCanvas = document.getElementById('mainCanvas');
+    const ctx = mainCanvas.getContext('2d');
+    const brightness = document.getElementById('brightness');
+    const contrast = document.getElementById('contrast');
+    const gamma = document.getElementById('gamma');
+    const btnCLAHE = document.getElementById('btnCLAHE');
+    const btnInvert = document.getElementById('btnInvert');
+    const btnExport = document.getElementById('btnExport');
+    const toggleBoxes = document.getElementById('toggleBoxes');
+    const toggleLabels = document.getElementById('toggleLabels');
+    const scaleInput = document.getElementById('scaleInput');
+    const btnMeasure = document.getElementById('btnMeasure');
+    const btnClearMeasurements = document.getElementById('btnClearMeasurements');
+    const measurementsList = document.getElementById('measurementsList');
+    const detectionsList = document.getElementById('detectionsList');
+    const detCount = document.getElementById('detCount');
+    const zoomVal = document.getElementById('zoomVal');
+    const btnGenerateReport = document.getElementById('btnGenerateReport');
+
+    let currentImage = null; // Image object
+    let currentDetections = [];
+    let measurements = [];
+    let measuring = false;
+    let measurePoints = [];
+    const scaleMMPerPx = parseFloat(scaleInput.value) || 0.264; // default mm per px
+
+    // ---------- Utilitários ----------
+    function resetCanvasSize(w,h){
+      mainCanvas.width = w;
+      mainCanvas.height = h;
+    }
+
+    function clearCanvas(){
+      ctx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+    }
+
+    function applyDisplayFilters(imageData){
+      // Aplica brilho/contraste/gamma de forma simples (não linearidade correta em todos os casos)
+      const b = parseInt(brightness.value,10); // -100..100
+      const c = parseInt(contrast.value,10); // -100..100
+      const g = parseFloat(gamma.value); // 0.1..3
+      const data = imageData.data;
+      // Precompute contrast factor
+      const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
+      for(let i=0;i<data.length;i+=4){
+        for(let ch=0;ch<3;ch++){
+          let v = data[i+ch];
+          v = v + b; // brightness
+          v = contrastFactor * (v - 128) + 128; // contrast
+          v = 255 * Math.pow((v/255), 1.0/g); // gamma
+          data[i+ch] = Math.max(0, Math.min(255, Math.round(v)));
+        }
+      }
+      return imageData;
+    }
+
+    function drawAll(){
+      if(!currentImage) return;
+      resetCanvasSize(currentImage.width, currentImage.height);
+      // draw base image
+      ctx.drawImage(currentImage,0,0);
+
+      // optionally apply filters by reading pixels and putting back
+      let id = ctx.getImageData(0,0,mainCanvas.width, mainCanvas.height);
+      id = applyDisplayFilters(id);
+      ctx.putImageData(id,0,0);
+
+      // draw detections
+      if(toggleBoxes.checked) drawDetections();
+      // draw measurements
+      drawMeasurements();
+    }
+
+    function drawDetections(){
+      if(!currentDetections) return;
+      ctx.save();
+      ctx.lineWidth = Math.max(2, Math.round(mainCanvas.width/400));
+      ctx.strokeStyle = 'rgba(0,200,0,0.85)';
+      ctx.fillStyle = 'rgba(0,200,0,0.9)';
+      ctx.font = `${Math.max(12, Math.round(mainCanvas.width/140))}px sans-serif`;
+
+      detectionsList.innerHTML = '';
+
+      currentDetections.forEach((d,idx)=>{
+        // support both array-style [x1,y1,x2,y2,label,conf] and object style
+        let x1,y1,x2,y2,label,conf;
+        if(Array.isArray(d)){
+          [x1,y1,x2,y2,label,conf] = d;
+          conf = parseFloat((conf+'').replace('%',''))/100 || 0;
+        } else {
+          x1=d.x1;y1=d.y1;x2=d.x2;y2=d.y2;label=d.class || d.label || 'obj';conf=d.confidence||d.conf||0;
+        }
+        // draw box
+        ctx.beginPath();
+        ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+        // label
+        if(toggleLabels.checked){
+          const text = `${label} (${(conf*100).toFixed(1)}%)`;
+          const padding = 6;
+          const tw = ctx.measureText(text).width;
+          ctx.fillRect(x1, Math.max(0,y1-24), tw + padding, 20);
+          ctx.fillStyle = '#000';
+          ctx.fillText(text, x1 + 4, Math.max(14,y1-8));
+          ctx.fillStyle = 'rgba(0,200,0,0.9)';
+        }
+
+        // populate list
+        const li = document.createElement('div');
+        li.className = 'muted-2';
+        li.textContent = `${label} — ${(conf*100).toFixed(1)}%  @ [${x1},${y1}]`;
+        li.style.cursor = 'pointer';
+        li.onclick = ()=>{ // center view on box (simple)
+          // not implemented: smooth pan/zoom
+          const cx = (x1+x2)/2, cy=(y1+y2)/2;
+          // highlight (blink)
+          flashBox(x1,y1,x2,y2);
+        };
+        detectionsList.appendChild(li);
+      });
+      detCount.textContent = currentDetections.length;
+      ctx.restore();
+    }
+
+    function flashBox(x1,y1,x2,y2){
+      ctx.save();
+      ctx.strokeStyle = '#ff0';ctx.lineWidth=5;ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+      setTimeout(()=>{drawAll();},400);
+      ctx.restore();
+    }
+
+    function drawMeasurements(){
+      ctx.save();
+      ctx.lineWidth = 2;ctx.strokeStyle = 'rgba(255,0,0,0.9)';ctx.fillStyle='rgba(255,0,0,0.9)';ctx.font='14px sans-serif';
+      measurementsList.innerHTML='';
+      measurements.forEach((m,i)=>{
+        const {p1,p2,distPx} = m;
+        ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+        const midx = (p1.x+p2.x)/2, midy=(p1.y+p2.y)/2;
+        const mm = (distPx * parseFloat(scaleInput.value)).toFixed(2);
+        ctx.fillText(`${mm} mm`, midx+6, midy-6);
+        const row = document.createElement('div');
+        row.textContent = `M${i+1}: ${mm} mm @ ${Math.round(distPx)} px`;
+        measurementsList.appendChild(row);
+      });
+      ctx.restore();
+    }
+
+    // ---------- Event handlers ----------
+    fileInput.addEventListener('change', async (ev)=>{
+      const file = ev.target.files[0];
+      if(!file) return;
+      if(!file.type.startsWith('image/')){ alert('Envie apenas arquivos de imagem.'); return; }
+      const img = new Image();
+      img.onload = ()=>{
+        currentImage = img;
+        drawAll();
+      }
+      img.src = URL.createObjectURL(file);
+      // clear any previous detections
+      currentDetections = [];
+      detectionsList.innerHTML=''; detCount.textContent='0';
+    });
+
+    btnDetect.addEventListener('click', async ()=>{
+      // fetch file from input
+      const f = fileInput.files[0];
+      if(!f){ alert('Selecione uma imagem primeiro.'); return; }
+      // basic size guard
+      if(f.size > 50_000_000){ if(!confirm('Arquivo grande (>50MB). Continuar?')) return; }
+
+      const data = new FormData();
+      data.append('image_file', f, 'image_file');
+
+      btnDetect.disabled = true; btnDetect.textContent = 'Detectando...';
+      try{
+        const res = await fetch(DETECT_ENDPOINT, { method:'POST', body:data });
+        if(!res.ok) throw new Error(`Servidor retornou ${res.status}`);
+        const json = await res.json();
+        // Expect either array of arrays or array of objects
+        currentDetections = json;
+        drawAll();
+      }catch(err){
+        alert('Erro na detecção: '+err.message);
+      }finally{
+        btnDetect.disabled=false; btnDetect.textContent='Detectar';
+      }
+    });
+
+    // brightness/contrast/gamma updates
+    [brightness,contrast,gamma].forEach(el=>el.addEventListener('input', ()=>{ drawAll(); }));
+    btnInvert.addEventListener('click', ()=>{
+      // simple invert
+      if(!currentImage) return; drawAll();
+      const id = ctx.getImageData(0,0,mainCanvas.width, mainCanvas.height);
+      const d = id.data; for(let i=0;i<d.length;i+=4){ d[i]=255-d[i]; d[i+1]=255-d[i+1]; d[i+2]=255-d[i+2]; }
+      ctx.putImageData(id,0,0);
+    });
+
+    btnCLAHE.addEventListener('click', ()=>{
+      alert('CLAHE: placeholder — operação de contraste local pode ser implementada no servidor ou com WebGL para performance.');
+    });
+
+    btnExport.addEventListener('click', ()=>{
+      if(!currentImage){ alert('Nenhuma imagem para exportar'); return; }
+      // export canvas as png
+      const link = document.createElement('a');
+      link.download = 'annotated.png';
+      link.href = mainCanvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // measurement tool
+    btnMeasure.addEventListener('click', ()=>{ measuring = !measuring; btnMeasure.textContent = measuring? 'Medindo: clique 2 pontos' : 'Medir'; measurePoints=[]; });
+
+    mainCanvas.addEventListener('click', (ev)=>{
+      if(measuring){
+        const rect = mainCanvas.getBoundingClientRect();
+        const x = Math.round((ev.clientX - rect.left) * (mainCanvas.width / rect.width));
+        const y = Math.round((ev.clientY - rect.top) * (mainCanvas.height / rect.height));
+        measurePoints.push({x,y});
+        if(measurePoints.length===2){
+          const p1 = measurePoints[0], p2 = measurePoints[1];
+          const dx = p2.x - p1.x, dy = p2.y - p1.y;
+          const distPx = Math.sqrt(dx*dx + dy*dy);
+          measurements.push({p1,p2,distPx});
+          measuring=false; btnMeasure.textContent='Medir'; measurePoints=[]; drawAll();
+        }
+      }
+    });
+
+    btnClearMeasurements.addEventListener('click', ()=>{ measurements=[]; drawAll(); });
+
+    // Generate report (basic)
+    btnGenerateReport.addEventListener('click', ()=>{
+      // Produz um laudo simples. Em produção, gerar no servidor com dados do paciente
+      const lines = [];
+      lines.push('Laudo Radiográfico - Dental X-Ray');
+      lines.push('Achados:');
+      currentDetections.forEach((d,i)=>{
+        let label = Array.isArray(d)? d[4] : d.class || d.label || 'obj';
+        let conf = Array.isArray(d)? parseFloat((d[5]+'').replace('%',''))/100 : (d.confidence||d.conf||0);
+        lines.push(`${i+1}. ${label} — ${(conf*100).toFixed(1)}%`);
+      });
+      lines.push('\nMedições:');
+      measurements.forEach((m,i)=>{ lines.push(`${i+1}. ${ (m.distPx*parseFloat(scaleInput.value)).toFixed(2)} mm`); });
+
+      const blob = new Blob([lines.join('\n')],{type:'text/plain'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='laudo.txt'; a.click();
+    });
+
+    // Zoom fit and reset
+    document.getElementById('btnZoomFit').addEventListener('click', ()=>{ if(!currentImage) return; fitToContainer(); });
+    document.getElementById('btnReset').addEventListener('click', ()=>{ brightness.value=0; contrast.value=0; gamma.value=1; currentDetections=[]; drawAll(); });
+
+    function fitToContainer(){
+      const container = document.getElementById('viewerLeft');
+      if(!currentImage) return;
+      const cw = container.clientWidth-20, ch = container.clientHeight-20; // padding
+      const imgRatio = currentImage.width/currentImage.height;
+      let w = cw, h = Math.round(w / imgRatio);
+      if(h > ch){ h = ch; w = Math.round(h * imgRatio); }
+      // scale canvas visually by CSS while keeping coord system intact
+      mainCanvas.style.width = w + 'px';
+      mainCanvas.style.height = h + 'px';
+      zoomVal.textContent = Math.round((w/currentImage.width)*100) + '%';
+    }
+
+    // initial resize
+    window.addEventListener('resize', ()=>{ if(currentImage) fitToContainer(); });
+
+    // Drop support
+    const viewerLeft = document.getElementById('viewerLeft');
+    ['dragenter','dragover'].forEach(ev=> viewerLeft.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); viewerLeft.style.outline='2px dashed #cfeffb'; }));
+    ['dragleave','drop'].forEach(ev=> viewerLeft.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); viewerLeft.style.outline='none'; }));
+    viewerLeft.addEventListener('drop', (e)=>{
+      const f = e.dataTransfer.files[0]; if(!f) return; fileInput.files = e.dataTransfer.files; const ev = new Event('change'); fileInput.dispatchEvent(ev);
+    });
+
+    // helpful: keyboard shortcuts
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='r' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); document.getElementById('btnReset').click(); }
+      if(e.key==='f' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); document.getElementById('btnZoomFit').click(); }
+    });
+
+    // initial placeholder canvas size
+    resetCanvasSize(800,600);
+    ctx.fillStyle='#f6fbff'; ctx.fillRect(0,0,800,600);
+    ctx.fillStyle='#6b8ba0'; ctx.font='18px sans-serif'; ctx.fillText('Carregue uma radiografia para começar', 40, 340);
+
+    // Expose some internals for debugging
+    window._DX = { drawAll, currentDetections, measurements };
+  </script>
+</body>
+</html>
