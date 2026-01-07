@@ -28,7 +28,7 @@
       --glass: rgba(255,255,255,0.8);
     }
     html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background: var(--bg);} 
-    .app{display:flex;height:175vh;gap:18px;padding:18px;box-sizing:border-box}
+    .app{display:flex;height:200vh;gap:18px;padding:18px;box-sizing:border-box}
 
     /* Sidebar */
     .sidebar{width:320px;background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(32,40,45,0.06);display:flex;flex-direction:column;gap:12px}
@@ -61,8 +61,8 @@
     .viewer{flex:1;display:flex;gap:12px}
     .viewer-left{flex:1;display:flex;align-items:center;justify-content:center;background:var(--card);border-radius:10px;padding:8px;position:relative}
 
-    canvas{max-width:100%;max-height:calc(100vh - 240px);border-radius:6px}
-    .overlay{position:absolute;right:8px;top:8px;background:var(--glass);padding:6px;border-radius:8px;font-size:13px}
+    canvas{width:90%;max-height:calc(100vh - 240px);border-radius:6px;}
+    .overlay{position:absolute;right:8px;top:8px;background:var(--glass);padding:6px;border-radius:8px;font-size:10px}
 
     .tools-col{width:320px;display:flex;flex-direction:column;gap:10px}
     .list{display:flex;flex-direction:column;gap:6px}
@@ -70,7 +70,7 @@
     .footer{margin-top:8px;display:flex;justify-content:space-between;align-items:center}
 
     /* badges and lists */
-    .badge{display:inline-block;padding:6px 8px;border-radius:8px;background:#f2fbf6;color:var(--success);font-weight:600}
+    .badge{display:inline-block;padding:6px 8px;border-radius:8px;background:#f2fbf6;color:var(--success);font-weight:600;}
 
     /* responsive */
     @media (max-width:1000px){
@@ -95,8 +95,13 @@
       <div class="logo">
         <!-- <img src="../templates/img/logo-simbolo-t.png" alt="logo"> -->
         <div>
-          <h1 style="color: #e6f1f6;">Dentican</h1>
-          <p class="subtitle">Análise radiográfica assistida por IA</p>
+          <!-- <h1 style="color: #e6f1f6;">Dentican</h1>
+          <p class="subtitle">Análise radiográfica assistida por IA</p> -->
+          <a href="https://google.com">
+            <button style="width: 315px; height: 50px; border-radius: 10px;border-color: #e6eef3;background-color: #1b1c29;color: #e6eef3; font-size: 16px;font-weight: 400;cursor: pointer;">
+            Voltar a Tela Inicial
+          </button>
+          </a>
         </div>
       </div>
 
@@ -114,6 +119,30 @@
           <button id="btnExport" class="btn" title="Exportar imagem anotada">Exportar</button>
         </div>
       </div>
+
+      <aside class="tools-col">
+            <div class="section">
+              <h3 style="color: #e6f1f6;">Detecções</h3>
+              <div id="detectionsList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto"></div>
+            </div>
+
+            <div class="section">
+              <h3 style="color: #e6f1f6;">Medições</h3>
+              <p class="small muted">Clique em dois pontos no canvas para medir.</p>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button id="btnMeasure" class="btn secondary">Medir</button>
+                <button id="btnClearMeasurements" class="btn ghost">Limpar</button>
+              </div>
+              <div id="measurementsList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
+            </div>
+
+            <!-- <div class="section">
+              <h3 style="color: #e6f1f6;">Segmentação</h3>
+              <p class="small muted">Placeholder: integrar U-Net/segmentadores posteriormente.</p>
+              <button id="btnRunSeg" class="btn secondary">Executar Segmentação</button>
+            </div> -->
+
+      </aside>
 
       <div class="section">
         <h3 style="color: #e6f1f6;">2) Ajustes radiográficos</h3>
@@ -163,7 +192,7 @@
     <main class="main">
       <div class="canvas-wrapper">
         <div class="toolbar">
-          <div class="label">Visualizador</div>
+          <div class="label"  style="color: #e6f1f6;">Visualizador</div>
           <div style="flex:1"></div>
           <div class="muted small">Detecções: <span id="detCount">0</span></div>
         </div>
@@ -174,29 +203,7 @@
             <canvas id="mainCanvas"></canvas>
           </div>
 
-          <aside class="tools-col">
-            <div class="section">
-              <h3 style="color: #e6f1f6;">Detecções</h3>
-              <div id="detectionsList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto"></div>
-            </div>
-
-            <div class="section">
-              <h3 style="color: #e6f1f6;">Medições</h3>
-              <p class="small muted">Clique em dois pontos no canvas para medir.</p>
-              <div style="display:flex;gap:6px;align-items:center">
-                <button id="btnMeasure" class="btn secondary">Medir</button>
-                <button id="btnClearMeasurements" class="btn ghost">Limpar</button>
-              </div>
-              <div id="measurementsList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
-            </div>
-
-            <div class="section">
-              <h3 style="color: #e6f1f6;">Segmentação</h3>
-              <p class="small muted">Placeholder: integrar U-Net/segmentadores posteriormente.</p>
-              <button id="btnRunSeg" class="btn secondary">Executar Segmentação</button>
-            </div>
-
-          </aside>
+          <!--  Aside -->
         </div>
       </div>
 
